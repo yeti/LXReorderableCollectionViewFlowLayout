@@ -151,6 +151,9 @@ static NSString * const kLXCollectionViewKeyPath = @"collectionView";
   NSIndexPath *newIndexPath = [self.collectionView indexPathForItemAtPoint:self.currentView.center];
   NSIndexPath *previousIndexPath = self.selectedItemIndexPath;
   _coveringLast = NO;
+  
+  if (previousIndexPath.row == [self.collectionView numberOfItemsInSection: 0] ||  )
+  
   if ((newIndexPath == nil) || [newIndexPath isEqual:previousIndexPath]) {
     return;
   }
@@ -282,6 +285,9 @@ static NSString * const kLXCollectionViewKeyPath = @"collectionView";
   switch(gestureRecognizer.state) {
     case UIGestureRecognizerStateBegan: {
       NSIndexPath *currentIndexPath = [self.collectionView indexPathForItemAtPoint:[gestureRecognizer locationInView:self.collectionView]];
+      if (currentIndexPath.row == [self.collectionView numberOfItemsInSection:0] - 1 || currentIndexPath.row == [self.collectionView numberOfItemsInSection:0] - 2) {
+        return;
+      }
       
       if ([self.dataSource respondsToSelector:@selector(collectionView:canMoveItemAtIndexPath:)] &&
           ![self.dataSource collectionView:self.collectionView canMoveItemAtIndexPath:currentIndexPath]) {
