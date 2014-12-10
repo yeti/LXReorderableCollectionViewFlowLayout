@@ -75,14 +75,18 @@ static NSString * const kLXCollectionViewKeyPath = @"collectionView";
 @property (assign, nonatomic, readonly) id<LXReorderableCollectionViewDelegateFlowLayout> delegate;
 @property BOOL coveringLast;
 
+
 @end
 
-@implementation LXReorderableCollectionViewFlowLayout
+@implementation LXReorderableCollectionViewFlowLayout {
+  CGFloat kMinSpacing;
+}
 
 - (void)setDefaults {
   _scrollingSpeed = 300.0f;
   _scrollingTriggerEdgeInsets = UIEdgeInsetsMake(50.0f, 50.0f, 50.0f, 50.0f);
   _coveringLast = NO;
+  kMinSpacing = 20.0;
 }
 
 - (void)setupCollectionView {
@@ -378,6 +382,9 @@ static NSString * const kLXCollectionViewKeyPath = @"collectionView";
            if (strongSelf) {
              strongSelf.currentView.transform = CGAffineTransformMakeScale(1.0f, 1.0f);
              strongSelf.currentView.center = layoutAttributes.center;
+             if (_coveringLast) {
+               strongSelf.currentView.hidden = YES;
+             }
            }
          }
          completion:^(BOOL finished) {
@@ -395,6 +402,7 @@ static NSString * const kLXCollectionViewKeyPath = @"collectionView";
              }
            }
          }];
+        _coveringLast = NO;
       }
     } break;
       
@@ -452,6 +460,10 @@ static NSString * const kLXCollectionViewKeyPath = @"collectionView";
   NSArray *layoutAttributesForElementsInRect = [super layoutAttributesForElementsInRect:rect];
   
   for (UICollectionViewLayoutAttributes *layoutAttributes in layoutAttributesForElementsInRect) {
+    if (layoutAttributes.representedElementKind == nil) {
+      NSIndexPath *indexPath = layoutAttributes.indexPath;
+      layoutAttributes.frame = [self layoutAttributesForItemAtIndexPath:indexPath].frame;
+    }
     switch (layoutAttributes.representedElementCategory) {
       case UICollectionElementCategoryCell: {
         [self applyLayoutAttributes:layoutAttributes];
@@ -477,7 +489,40 @@ static NSString * const kLXCollectionViewKeyPath = @"collectionView";
     } break;
   }
   
+  UIEdgeInsets sectionInset = [(UICollectionViewFlowLayout *)self.collectionView.collectionViewLayout sectionInset];
+  if (indexPath.item == 0) { // first item of section
+    CGRect frame = layoutAttributes.frame;
+    frame.origin.x = sectionInset.left;
+    layoutAttributes.frame = frame;
+    return layoutAttributes;
+  }
+  
+  NSIndexPath* previousIndexPath = [NSIndexPath indexPathForItem:indexPath.item-1 inSection:indexPath.section];
+  CGRect previousFrame = [self layoutAttributesForItemAtIndexPath:previousIndexPath].frame;
+  CGFloat previousFrameRightPoint = previousFrame.origin.x + previousFrame.size.width + kMinSpacing;
+  
+  CGRect currentFrame = layoutAttributes.frame;
+  CGRect strecthedCurrentFrame = CGRectMake(0,
+                                            currentFrame.origin.y,
+                                            self.collectionView.frame.size.width,
+                                            currentFrame.size.height);
+  
+  if (!CGRectIntersectsRect(previousFrame, strecthedCurrentFrame)) { // if current item is the first item on the line
+    // the approach here is to take the current frame, left align it to the edge of the view
+    // then stretch it the width of the collection view, if it intersects with the previous frame then that means it
+    // is on the same line, otherwise it is on it's own new line
+    CGRect frame = layoutAttributes.frame;
+    frame.origin.x = sectionInset.left; // first item on the line should always be left aligned
+    layoutAttributes.frame = frame;
+    return layoutAttributes;
+  }
+  
+  CGRect frame = layoutAttributes.frame;
+  frame.origin.x = previousFrameRightPoint;
+  layoutAttributes.frame = frame;
   return layoutAttributes;
+  
+  //return layoutAttributes;
 }
 
 #pragma mark - UIGestureRecognizerDelegate methods
